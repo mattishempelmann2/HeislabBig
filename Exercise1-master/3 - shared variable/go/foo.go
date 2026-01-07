@@ -40,6 +40,7 @@ func server(ch1 chan int, ch2 chan int, ferdig chan int, svar chan int) {
 
 }
 
+// git fix
 func main() {
 	// What does GOMAXPROCS do? What happens if you set it to 1?
 	runtime.GOMAXPROCS(2)
