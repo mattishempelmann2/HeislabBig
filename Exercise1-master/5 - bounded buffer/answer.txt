@@ -1,1 +1,23 @@
-Task 4&5 Now we understand the use of sem_wait and sem_post
+Task 4&5 Now we understand the use of sem_wait and sem_post in c
+
+Task 4&5 in go much easier use channel as buffer
+
+Task 6: We have to ensure orders are kept during chrashes. We have to ensure orders are kept when bitlfips occur.
+Communication between the computers and redundancy have to be implemented to make this work.
+
+We have to make an order be assigned to one elevator with a set of rules, one being proximity.
+To clear an order from all elevators we need send a signal to the other elevators.
+
+If one elevator chrashes, the other elevators can know this by using watchdog timers, and take the order from another elevator. 
+If a elevator hangs, we can have a timeout function that sends another elevator if it takes too long to complete.
+We can have use confirmation messages to ensure that an elevator got an order.
+If a cable is disconnected, the other elevators will complete the orders.
+If an elevator never arrives, it is decommisioned, and will be excluded from the program.
+
+Task 7:
+We will use GO. A message passing way of passing data seems safer regarding redundancy and making sure other elevators can take a task in case of an error.
+
+We will split modules into function. We need to make a good design here before coding.
+
+Yes, the GO language for instance has a test for race-conditions. Tests can be made.
+The VS-code IDE seems to work well with GO.
