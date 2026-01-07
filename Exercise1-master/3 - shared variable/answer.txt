@@ -1,0 +1,10 @@
+Task2. For c and go as well, if the variable i is not atomic we get race conditions, example: at time 0 value is 0, thread 1 caches this value to increment it, time 1: thread 1 
+is calcualting new val, thread 2 wants to decrement takes value from memory which is still 0, time 3 thread 1 writes result back new val is 1, thread 2 calculating,
+ time 3: thread 2 finishes, result is 0-1 = -1 writes back, i is now -1 when it should be 0. do this a million times.
+
+Task3: In C instead of using the atomic keyword, we can use threadlocking, this makes a thread lock down the resource it is using so no other thread can change it
+at the same time. Once the thread is done it unlocks the resource.
+
+For go we use channel to make thread communicate, bit of a hassle. Have server keep track of variabel, increment/decrement just send 1 down channel to signal they want a
+variable incremented/decremented. after running a million times they send true down done channel, in main we read done twice to wait until true has been sent twice
+then we know it is done and can read value, dont need sleep anymore because of this wait.
