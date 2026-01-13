@@ -4,7 +4,7 @@ Exercise 1 - Theory questions
 ### Concepts
 
 What is the difference between *concurrency* and *parallelism*?
-> The difference is *
+> The difference is that concurrency is something happening at the exact same time. Parallelism is computing using multiple threads to compute faster. *
 
 What is the difference between a *race condition* and a *data race*? 
 > *Your answer here* 
