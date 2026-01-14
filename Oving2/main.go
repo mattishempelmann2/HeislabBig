@@ -11,6 +11,7 @@ import (
 )
 
 // server ip: 10.100.23.11
+// pc ip: 10.100.23.24
 
 // We define some custom struct to send over the network.
 // Note that all members we want to transmit must be public. Any private members
@@ -56,12 +57,12 @@ func main() {
 	// These functions can take any number of channels! It is also possible to
 	//  start multiple transmitters/receivers on the same port.
 
-	go bcast.Transmitter(16569, helloTx)
-	go bcast.Receiver(16569, helloRx)
+	go bcast.Transmitter(20014, helloTx)
+	go bcast.Receiver(20014, helloRx)
 
 	// The example message. We just send one of these every second.
 	go func() {
-		helloMsg := HelloMsg{"Hello from " + id, 0}
+		helloMsg := HelloMsg{"Hello from  plass 14" + id, 0}
 		for {
 			helloMsg.Iter++
 			helloTx <- helloMsg

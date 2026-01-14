@@ -1,0 +1,52 @@
+Oppgave network design
+
+What should happen if one of the nodes loses its network connection?
+-Other nodes stop receiving health checks, know node 1 is dead/disconnected. Node 1 keeps executing all orders that are delegated to it, have not decided if
+node 1 should keep accepting new orders made on its own buttons
+
+What if one node looses power for a brief moment
+- We plan for all nodes to have some copy of order list, undecided how this will be implemented. If one looses power and comes back online it will receive order
+list from one that didnt crash
+
+What should happen if some unforeseen event causes the elevator to never reach its destination, but communication remains intact?
+-We plan on using UDP to send frequent health checks, ideally this would allows a node to tell other elevators its stuck/blocked/whatever
+
+Do all your nodes need to "agree" on a call for it to be accepted? In that case, how is a faulty node handled?
+-Majority vote, unlikely for cosmic ray bit flip to happen twice at the same time.
+
+How can you be sure that a remote node "agrees" on an call?
+-We think this could be included in health checks or other messaging.
+
+How do you handle losing packets between the nodes?
+-Not 100% sure yet, if we can contain all neccesary information in frequent health checks, think many times per sec, then we can tolerate loosing some messages.
+
+Do you share the entire state of the current calls, or just the changes as they occur?
+
+    For either one: What should happen when an elevator re-joins after having been offline?
+- We think entire state is easier, gives fixed message size also, if elevator rejoins it would need the full state array anyway so this way we can reuse normal
+messaging to restore the elevator.
+
+What kind of network topology do you want to implement? Peer to peer? Master slave? Circle? Something else?
+-Some sort of combo of P2P and master slave, we wish that all nodes have all the info and that this is sent around continously, but at the same time we think it
+is smart to have one decision maker that calls the shots. This would require some sort of state change where each node can be master/slave. If node 1 is master
+and disconnects node 2 takes over, node 3 takes over for 2 and so on. Since all have copy of order list this should be possible.
+If samme button on two panels at once, this wouldnt be a problem
+
+Protocols: TCP, UDP, or something else? 
+-for now we think we would like to use UDP, no fixed connecting between nodes which could make issues when packet loss occurs or connection is lost.
+No timeout to wait before one node is considered dead
+
+If you are using UDP broadcast: How do you differentiate between messages from different nodes?
+-ID system?
+
+If you are using a library or language feature to do the heavy lifting - what is it, and does it satisfy your needs?
+-We havent really decided? We used the provided NEtwork package today, this worked fine today, dont know if future constraints will change this
+
+Do you want to build the necessary reliability into the module, or handle that at a higher level?
+- Unsure, generally i think it is smart to implement safety features at the lowest level possible.
+
+Is detection (and handling) of things like lost messages or lost nodes a part of the network module?
+-Not really, since we use UDP it only "spams" stuff, the checking if we have received health check from other nodes would be done elsewhere.
+
+How will you pack and unpack (serialize) data? 
+- we think using a struct is smart, but this is based on C knowledge, maybe different in go.
