@@ -180,9 +180,20 @@ func PollButtons(receiver chan<- ButtonEvent) {
 func PollFloorSensor(receiver chan<- int, btnPress <-chan bool) {
 	prev := -1
 	for {
+
 		time.Sleep(_pollRate)
 		v := GetFloor()
-		if (v != prev && v != -1) || <-btnPress {
+
+		buttonPressed := false
+
+		select {
+		case <-btnPress:
+			buttonPressed = true
+		default:
+			buttonPressed = false
+		}
+
+		if (v != prev && v != -1) || (v != -1 && buttonPressed) {
 			receiver <- v
 		}
 		prev = v
