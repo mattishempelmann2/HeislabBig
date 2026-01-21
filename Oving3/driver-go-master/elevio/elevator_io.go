@@ -1,18 +1,18 @@
 package elevio
 
-import "time"
-import "sync"
-import "net"
-import "fmt"
-
-
+import (
+	"fmt"
+	"net"
+	"sync"
+	"time"
+)
 
 const _pollRate = 20 * time.Millisecond
 
-var _initialized    bool = false
-var _numFloors      int = 4
-var _mtx            sync.Mutex
-var _conn           net.Conn
+var _initialized bool = false
+var _numFloors int = 4
+var _mtx sync.Mutex
+var _conn net.Conn
 
 type MotorDirection int
 
@@ -35,7 +35,11 @@ type ButtonEvent struct {
 	Button ButtonType
 }
 
-
+type Elevator struct {
+	OrderList [4][3]bool
+	Floor     int
+	Retning   MotorDirection
+}
 
 func Init(addr string, numFloors int) {
 	if _initialized {
@@ -52,10 +56,9 @@ func Init(addr string, numFloors int) {
 	_initialized = true
 }
 
-
-
-func SetMotorDirection(dir MotorDirection) {
+func (e *Elevator) SetMotorDirection(dir MotorDirection) {
 	write([4]byte{1, byte(dir), 0, 0})
+	e.UpdateRetning(dir)
 }
 
 func SetButtonLamp(button ButtonType, floor int, value bool) {
@@ -74,9 +77,89 @@ func SetStopLamp(value bool) {
 	write([4]byte{5, toByte(value), 0, 0})
 }
 
-//func UpdateOrderList(floor int, button ButtonType)
+func UpdateOrderList(Orders <-chan ButtonEvent, e *Elevator) {
+	for req := range Orders {
+		e.UpdateElevatorOrder(req)
+		fmt.Printf("executing order: floor: %d button : %d", req.Floor, req.Button)
+		//orderexecution
+	}
+}
 
+func (e *Elevator) UpdateElevatorOrder(btn ButtonEvent) {
+	e.OrderList[btn.Floor][btn.Button] = true
+}
 
+func (e *Elevator) UpdateFloor(Floor int) {
+	if Floor != -1 {
+		e.Floor = Floor
+	}
+}
+
+func (e *Elevator) UpdateRetning(Retning MotorDirection) {
+	e.Retning = Retning
+}
+
+func (e *Elevator) HasOrderAbove() bool {
+	for i := e.Floor + 1; i < _numFloors; i++ {
+		for j := 0; j < 3; j++ {
+			if e.OrderList[i][j] == true {
+				return true
+			}
+		}
+
+	}
+	return false
+}
+
+func (e *Elevator) HasOrderBelow() bool {
+	for i := e.Floor - 1; i >= 0; i-- {
+		for j := 0; j < 3; j++ {
+			if e.OrderList[i][j] == true {
+				return true
+			}
+		}
+
+	}
+	return false
+}
+
+func (e *Elevator) FloorOrder() bool {
+	for i := 0; i < 3; i++ {
+		if e.OrderList[e.Floor][i] == true {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *Elevator) ClearOrderFloor() {
+	for i := 0; i < 3; i++ {
+		e.OrderList[e.Floor][i] = false
+		SetButtonLamp(ButtonType(i), e.Floor, false)
+
+	}
+}
+
+func (e *Elevator) ExecuteOrder() {
+	switch {
+	case e.HasOrderAbove():
+		e.SetMotorDirection(1)
+
+		//do something
+
+	case e.HasOrderBelow():
+		e.SetMotorDirection(-1)
+		//do something
+
+	case e.FloorOrder():
+		e.SetMotorDirection(0)
+		//do something
+
+	default:
+		e.SetMotorDirection(0)
+	}
+
+}
 
 func PollButtons(receiver chan<- ButtonEvent) {
 	prev := make([][3]bool, _numFloors)
@@ -94,12 +177,12 @@ func PollButtons(receiver chan<- ButtonEvent) {
 	}
 }
 
-func PollFloorSensor(receiver chan<- int) {
+func PollFloorSensor(receiver chan<- int, btnPress <-chan bool) {
 	prev := -1
 	for {
 		time.Sleep(_pollRate)
 		v := GetFloor()
-		if v != prev && v != -1 {
+		if (v != prev && v != -1) || <-btnPress {
 			receiver <- v
 		}
 		prev = v
@@ -130,9 +213,6 @@ func PollObstructionSwitch(receiver chan<- bool) {
 	}
 }
 
-
-
-
 func GetButton(button ButtonType, floor int) bool {
 	a := read([4]byte{6, byte(button), byte(floor), 0})
 	return toBool(a[1])
@@ -157,32 +237,33 @@ func GetObstruction() bool {
 	return toBool(a[1])
 }
 
-
-
-
-
 func read(in [4]byte) [4]byte {
 	_mtx.Lock()
 	defer _mtx.Unlock()
-	
+
 	_, err := _conn.Write(in[:])
-	if err != nil { panic("Lost connection to Elevator Server") }
-	
+	if err != nil {
+		panic("Lost connection to Elevator Server")
+	}
+
 	var out [4]byte
 	_, err = _conn.Read(out[:])
-	if err != nil { panic("Lost connection to Elevator Server") }
-	
+	if err != nil {
+		panic("Lost connection to Elevator Server")
+	}
+
 	return out
 }
 
 func write(in [4]byte) {
 	_mtx.Lock()
 	defer _mtx.Unlock()
-	
-	_, err := _conn.Write(in[:])
-	if err != nil { panic("Lost connection to Elevator Server") }
-}
 
+	_, err := _conn.Write(in[:])
+	if err != nil {
+		panic("Lost connection to Elevator Server")
+	}
+}
 
 func toByte(a bool) byte {
 	var b byte = 0
