@@ -24,7 +24,7 @@ func main() {
 	BtnPress := make(chan bool)
 
 	go elevio.PollButtons(drv_buttons)
-	go elevio.PollFloorSensor(drv_floors, BtnPress)
+	go cab1.PollFloorSensor(drv_floors, BtnPress)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
@@ -32,26 +32,15 @@ func main() {
 		select {
 		case a := <-drv_buttons:
 			fmt.Printf("%+v\n", a)
-			elevio.SetButtonLamp(a.Button, a.Floor, true)
-			go elevio.UpdateOrderList(OrderChan, cab1)
+			cab1.SetButtonLamp(a.Button, a.Floor, true)
+			go cab1.UpdateOrderList(OrderChan)
 			OrderChan <- a
 			BtnPress <- true
 
 		case a := <-drv_floors:
+			cab1.SetFloorIndicator(a)
 			cab1.UpdateFloor(a)
-			go cab1.ExecuteOrder()
-			cab1.ClearOrderFloor()
-
-			/*
-
-			   fmt.Printf("%+v\n", a)
-			   if a == numFloors-1 {
-			       d = elevio.MD_Down
-			   } else if a == 0 {
-			       d = elevio.MD_Up
-			   }
-			   cab1.SetMotorDirection(d)
-			*/
+			cab1.ExecuteOrder()
 
 		case a := <-drv_obstr:
 			fmt.Printf("%+v\n", a)
@@ -65,7 +54,7 @@ func main() {
 			fmt.Printf("%+v\n", a)
 			for f := 0; f < numFloors; f++ {
 				for b := elevio.ButtonType(0); b < 3; b++ {
-					elevio.SetButtonLamp(b, f, false)
+					cab1.SetButtonLamp(b, f, false)
 				}
 			}
 		}

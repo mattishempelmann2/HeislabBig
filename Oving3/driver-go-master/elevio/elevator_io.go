@@ -39,6 +39,7 @@ type Elevator struct {
 	OrderList [4][3]bool
 	Floor     int
 	Retning   MotorDirection
+	DoorOpen  bool
 }
 
 func Init(addr string, numFloors int) {
@@ -61,23 +62,23 @@ func (e *Elevator) SetMotorDirection(dir MotorDirection) {
 	e.UpdateRetning(dir)
 }
 
-func SetButtonLamp(button ButtonType, floor int, value bool) {
+func (e *Elevator) SetButtonLamp(button ButtonType, floor int, value bool) {
 	write([4]byte{2, byte(button), byte(floor), toByte(value)})
 }
 
-func SetFloorIndicator(floor int) {
+func (e *Elevator) SetFloorIndicator(floor int) {
 	write([4]byte{3, byte(floor), 0, 0})
 }
 
-func SetDoorOpenLamp(value bool) {
+func (e *Elevator) SetDoorOpenLamp(value bool) {
 	write([4]byte{4, toByte(value), 0, 0})
 }
 
-func SetStopLamp(value bool) {
+func (e *Elevator) SetStopLamp(value bool) {
 	write([4]byte{5, toByte(value), 0, 0})
 }
 
-func UpdateOrderList(Orders <-chan ButtonEvent, e *Elevator) {
+func (e *Elevator) UpdateOrderList(Orders <-chan ButtonEvent) {
 	for req := range Orders {
 		e.UpdateElevatorOrder(req)
 		fmt.Printf("executing order: floor: %d button : %d", req.Floor, req.Button)
@@ -132,27 +133,66 @@ func (e *Elevator) FloorOrder() bool {
 	return false
 }
 
+func (e *Elevator) ActiveOrders() bool {
+	for i := 0; i < 4; i++ {
+		for j := 0; j < 3; j++ {
+			if e.OrderList[i][j] == true {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (e *Elevator) ClearOrderFloor() {
 	for i := 0; i < 3; i++ {
 		e.OrderList[e.Floor][i] = false
-		SetButtonLamp(ButtonType(i), e.Floor, false)
+		e.SetButtonLamp(ButtonType(i), e.Floor, false)
 
 	}
 }
 
+func (e *Elevator) DriveTo(floor int) { // fjern
+	for e.Floor != floor {
+		switch {
+		case floor > e.Floor:
+			e.SetMotorDirection(1)
+
+		}
+	}
+}
+
+func (e *Elevator) StoppFloor() {
+	e.SetMotorDirection(0)
+	e.DoorOpen = true
+	e.SetDoorOpenLamp(true)
+	time.Sleep(3 * time.Second)
+	e.DoorOpen = false
+	e.SetDoorOpenLamp(false)
+	e.ClearOrderFloor()
+}
+
 func (e *Elevator) ExecuteOrder() {
 	switch {
+	case e.FloorOrder():
+		switch {
+		case e.OrderList[e.Floor][2] == true:
+			e.StoppFloor()
+		case (e.Retning == 1) && (e.OrderList[e.Floor][0] == true):
+			e.StoppFloor()
+		case e.Retning == -1 && (e.OrderList[e.Floor][1] == true):
+			e.StoppFloor()
+		default:
+			break // mulig redundant
+		}
+
 	case e.HasOrderAbove():
-		e.SetMotorDirection(1)
+		e.SetMotorDirection(1) // kjør til etasje det er ordre til
 
 		//do something
 
 	case e.HasOrderBelow():
 		e.SetMotorDirection(-1)
-		//do something
-
-	case e.FloorOrder():
-		e.SetMotorDirection(0)
 		//do something
 
 	default:
@@ -177,7 +217,7 @@ func PollButtons(receiver chan<- ButtonEvent) {
 	}
 }
 
-func PollFloorSensor(receiver chan<- int, btnPress <-chan bool) {
+func (e *Elevator) PollFloorSensor(receiver chan<- int, btnPress <-chan bool) {
 	prev := -1
 	for {
 
@@ -193,7 +233,7 @@ func PollFloorSensor(receiver chan<- int, btnPress <-chan bool) {
 			buttonPressed = false
 		}
 
-		if (v != prev && v != -1) || (v != -1 && buttonPressed) {
+		if (v != prev && v != -1) || (v != -1 && buttonPressed) || (e.ActiveOrders() && v != -1){
 			receiver <- v
 		}
 		prev = v
