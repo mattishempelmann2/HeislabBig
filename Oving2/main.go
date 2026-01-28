@@ -62,7 +62,7 @@ func main() {
 
 	// The example message. We just send one of these every second.
 	go func() {
-		helloMsg := HelloMsg{"Hello from  plass 14" + id, 0}
+		helloMsg := HelloMsg{"Hello from  plass 14 " + id, 0}
 		for {
 			helloMsg.Iter++
 			helloTx <- helloMsg
