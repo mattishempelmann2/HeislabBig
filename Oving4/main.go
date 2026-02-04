@@ -2,13 +2,15 @@ package main
 
 import (
 	"Network-go/network/bcast"
-	"Network-go/network/localip"
-	"Network-go/network/peers"
+	//"Network-go/network/localip"
+	//"Network-go/network/peers"
 	"fmt"
 	"time"
 	"os"
+	"os/exec"
 
 )
+
 
 const (
 	udpPort = 10000
@@ -27,69 +29,67 @@ func main() {
 	go bcast.Transmitter(20014, IntTx)
 	go bcast.Receiver(20014, IntRx)
 
-	counter := 0
 
-
-	initialMode := "primary"
 	if len(os.Args) > 1 && os.Args[1] == "backup" {
-		initialMode = "backup"
+		runBackup(IntRx, IntTx)
+	} else {
+		runPrimary(1, IntTx)
 	}
 
-	if initialMode == "primary"{
-		runPrimary(1)
-	}else{
-		runBackup()
-	}
 
 	
 }
 
 
-func runPrimary(startCount int){
-	fmt.Printf("Starting primary PID: &d \n", os.Getpid())
+func runPrimary(startCount int, IntTx chan <-int){
+	fmt.Printf("Starting primary PID: %d \n", os.Getpid())
 	spawnBackup()
 
 	count := startCount
-	ticker := time.NewTicker(heartbeatPeriod)
-
 	for{
 		if count > 4{
 			count = 1
 		}
-		time.Sleep(1 * time.second)
-		printf("count: %d \n", count)
+		fmt.Printf("count: %d \n", count)
 		IntTx <- count
 		count ++
+		time.Sleep(heartbeatPeriod)
 	}
 	
 }
 
-func runBackup(){
-	fmt:Printf("starting backup PID: %d \n", os.Getpid())
+func runBackup(IntRx <- chan int, IntTx chan <-int){
+	fmt.Printf("starting backup PID: %d \n", os.Getpid())
 
-	buffer := make([]byte, 1024)
 	lastCount := 0
 	lastSeen := time.Now()
 
-
-	go func() {
-		for {
-			time.Sleep(500 * time.Millisecond)
+	for{
+		select{
+		case msg := <- IntRx:
+			lastCount = msg
+			lastSeen = time.Now()
+			fmt.Printf("Count received: %d \n", lastCount)
+		
+		default:
 			if time.Since(lastSeen) > timeoutPeriod {
-				fmt.Printf("Primary dead, taking over")
-				runPrimary(lastCount + 1)
+				fmt.Printf("Primary dead! Taking over")
+				runPrimary(lastCount + 1, IntTx)
+				return
 			}
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
+
 }
 
 func spawnBackup() {
-	executable, err := os.executable()
+	executable, err := os.Executable()
 	if err != nil{
-		fmt:Println("Error finding exec", err)
+		fmt.Println("Error finding exec", err)
 		return
 	}
-	cmd := exec.command("gnome-terminal", "--", executable, "backup")
+	cmd := exec.Command("gnome-terminal", "--", executable, "backup")
 	err = cmd.Start()
 }
 
